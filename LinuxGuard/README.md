@@ -27,7 +27,7 @@ provides a safe first-pass audit that:
 | `firewall` | UFW or firewalld state |
 | `network` | Listening TCP/UDP sockets from `ss` |
 | `users` | UID 0 accounts, sudo-capable group indicators, and sudoers availability |
-| `permissions` | Metadata for sensitive files and bounded world-writable scans under `/tmp`, `/var/tmp`, and `/etc` |
+| `permissions` | Metadata for sensitive files and world-writable scans under `/tmp`, `/var/tmp`, and `/etc`; each directory is searched fully when possible, with at most 100 matching paths displayed per directory |
 | `updates` | APT, DNF, or YUM update candidates using existing metadata, plus systemd running-service inventory |
 
 ## Architecture
@@ -158,6 +158,12 @@ python3 -m json.tool "$HOME/linuxguard-reports/full.json" >/dev/null
 
 The report includes separate check statuses and finding statuses, so skipped,
 unknown, and failed operations remain visible when other checks succeed.
+
+The permissions check searches `/tmp`, `/var/tmp`, and `/etc` fully when the
+underlying `find` operation completes. The 100-path limit applies only to the
+matching paths displayed and reported for each directory; it does not limit the
+number of files searched. If `find` reports an error or does not complete, the
+scan is reported as UNKNOWN rather than as a clean result.
 
 ## Severity classification
 

@@ -56,13 +56,17 @@ Examples:
 
 Exit codes:
   0   Audit completed with no HIGH, MEDIUM, or LOW findings
-  1   Fatal error (for example, report generation failed)
-  2   Audit completed with one or more findings
+  1   Fatal error or audit check failure
+  2   Audit completed with one or more HIGH, MEDIUM, or LOW findings
   64  Invalid arguments or missing option values
 
 The tool is intended for Linux. It never changes configuration, firewall rules,
 accounts, permissions, packages, or services. Findings are investigation
 indicators, not proof of compromise.
+
+The permissions check scans /tmp, /var/tmp, and /etc for world-writable files.
+Each directory is searched fully when possible; at most 100 matching paths per
+directory are displayed. Incomplete scans are reported as unknown.
 EOF
 }
 
