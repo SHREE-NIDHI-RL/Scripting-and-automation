@@ -173,14 +173,24 @@ run_ssh() {
 }
 
 run_network() {
-    local sockets=""
+    local sockets="" ss_status=0
     if ! command_exists ss; then
         record_check network skipped "ss is unavailable"
         skipped "Network: ss is unavailable; listening sockets could not be inspected"
         record_finding INFO network "Listening socket audit skipped" skipped "The ss utility was not available." "Install iproute2 or inspect sockets with an approved local tool."
         return
     fi
-    sockets="$(ss -H -ltnup 2>/dev/null || true)"
+    if sockets="$(ss -H -ltnup 2>/dev/null)"; then
+        ss_status=0
+    else
+        ss_status=$?
+    fi
+    if (( ss_status != 0 )); then
+        record_check network error "ss failed while inspecting listening TCP and UDP sockets"
+        error_log "Network: ss failed with exit status $ss_status"
+        record_finding INFO network "Listening socket audit failed" error "The ss command could not complete, so listening sockets could not be assessed." "Check ss permissions and availability, then repeat the audit."
+        return
+    fi
     record_check network performed "Listening TCP and UDP socket inventory"
     if [[ -n "$sockets" ]]; then
         info "Listening sockets (addresses and ports):"
@@ -195,24 +205,35 @@ run_network() {
 }
 
 run_firewall() {
-    local status="unknown" tool="none" detail=""
+    local status="unknown" tool="none" detail="" ufw_detail="" firewalld_detail=""
     if command_exists ufw; then
         tool="ufw"
-        detail="$(ufw status 2>&1 || true)"
-        grep -qi '^status: active' <<<"$detail" && status="active"
-        grep -qi '^status: inactive' <<<"$detail" && status="inactive"
-    elif command_exists firewall-cmd; then
+        ufw_detail="$(ufw status 2>&1 || true)"
+        if grep -qi '^status: active' <<<"$ufw_detail"; then
+            status="active"
+        elif grep -qi '^status: inactive' <<<"$ufw_detail"; then
+            status="inactive"
+        else
+            detail="UFW returned an inconclusive status: $ufw_detail"
+        fi
+    fi
+    if [[ "$status" == "unknown" ]] && command_exists firewall-cmd; then
         tool="firewalld"
-        detail="$(firewall-cmd --state 2>&1 || true)"
-        grep -qx 'running' <<<"$detail" && status="active"
-        grep -Eqi 'not running|inactive|failed' <<<"$detail" && status="inactive"
+        firewalld_detail="$(firewall-cmd --state 2>&1 || true)"
+        if grep -qx 'running' <<<"$firewalld_detail"; then
+            status="active"
+        elif grep -Eqi '^(not running|inactive|failed)' <<<"$firewalld_detail"; then
+            status="inactive"
+        else
+            detail="${detail:+$detail; }firewalld returned an inconclusive status: $firewalld_detail"
+        fi
     fi
     if [[ "$tool" == "none" ]]; then
         record_check firewall skipped "No supported firewall management tool found"
         skipped "Firewall: UFW and firewalld were not available"
         record_finding INFO firewall "Firewall status unavailable" unknown "Neither UFW nor firewalld was detected." "Verify the host firewall with its platform-specific controls."
     else
-        record_check firewall performed "$tool firewall status"
+        record_check firewall performed "Firewall status inspection"
         info "$tool status: $status"
         case "$status" in
             active) pass "Firewall appears active"; record_finding INFO firewall "Firewall active" confirmed "$tool reported an active firewall." "Review rules for least privilege and required exposure.";;
@@ -286,22 +307,36 @@ audit_file() {
 }
 
 run_permissions() {
-    local path dir result=""
+    local path dir result="" scan_file="" error_file="" find_status=0 scan_errors=""
     record_check permissions performed "Sensitive file metadata and bounded world-writable scan"
     for path in /etc/passwd /etc/shadow /etc/group /etc/gshadow /etc/ssh/sshd_config; do audit_file "$path"; done
     for dir in /tmp /var/tmp /etc; do
         if [[ -d "$dir" && -r "$dir" ]]; then
             if command_exists find; then
-                result="$(find "$dir" -xdev -type f -perm -0002 -print 2>/dev/null | head -n 100 || true)"
+                scan_file="$WORK_DIR/find-$(printf '%s' "$dir" | tr -cd '[:alnum:]').out"
+                error_file="$WORK_DIR/find-$(printf '%s' "$dir" | tr -cd '[:alnum:]').err"
+                if find "$dir" -xdev -type f -perm -0002 -print >"$scan_file" 2>"$error_file"; then
+                    find_status=0
+                else
+                    find_status=$?
+                fi
+                result="$(head -n 100 "$scan_file")"
+                scan_errors="$(sanitize "$(cat "$error_file")")"
                 if [[ -n "$result" ]]; then
                     warn "World-writable files found under bounded scan $dir (up to 100 shown)"
                     while IFS= read -r path; do
                         if [[ -n "$path" ]]; then printf '  %s\n' "$path"; fi
                     done <<<"$result"
                     record_finding MEDIUM permissions "World-writable files found" confirmed "The bounded scan found one or more world-writable regular files under $dir." "Review each file's purpose and remove unnecessary world-write access."
-                else
+                fi
+                if (( find_status != 0 )) || [[ -n "$scan_errors" ]]; then
+                    warn "World-writable scan under $dir was incomplete"
+                    record_finding INFO permissions "World-writable scan incomplete" unknown "The bounded scan under $dir did not complete successfully${scan_errors:+: $scan_errors}." "Repeat the scan with permissions that allow the entire selected directory to be inspected."
+                elif [[ -z "$result" ]]; then
                     pass "No world-writable regular files found under $dir"
                 fi
+            else
+                record_finding INFO permissions "Bounded directory scan unavailable" skipped "The find utility was not available for $dir." "Install or use an approved file-audit utility."
             fi
         else
             record_finding INFO permissions "Bounded directory scan skipped" skipped "$dir is unavailable or unreadable." "Review the directory with appropriate permissions if it is in scope."
@@ -456,6 +491,7 @@ main() {
         generate_report "$(date -u +%Y-%m-%dT%H:%M:%SZ)" || die_fatal "JSON report generation requires Python and a writable output path"
     fi
     summary
+    if (( ERROR_CHECKS > 0 )); then exit "$EXIT_FATAL"; fi
     if (( HIGH_COUNT + MEDIUM_COUNT + LOW_COUNT > 0 )); then exit "$EXIT_FINDINGS"; fi
     exit "$EXIT_OK"
 }

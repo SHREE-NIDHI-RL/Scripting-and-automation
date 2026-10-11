@@ -173,13 +173,16 @@ unknown, and failed operations remain visible when other checks succeed.
 ## Errors and exit codes
 
 * `0` — completed with no HIGH, MEDIUM, or LOW findings;
-* `1` — fatal error, such as inability to create the temporary workspace or
-  generate a requested report;
+* `1` — fatal error or an audit check failed, such as inability to create the
+  temporary workspace, generate a requested report, or inspect sockets;
 * `2` — completed with one or more HIGH, MEDIUM, or LOW findings;
 * `64` — invalid arguments or a missing option value.
 
 Individual optional commands may be unavailable or permission-limited. LinuxGuard
 records that state instead of treating command failure as a successful check.
+Unavailable components are generally reported as skipped or unknown; a command
+that fails during an attempted check is reported as an error and returns exit
+code `1`.
 
 ## Testing and Validation
 
@@ -248,6 +251,10 @@ all include files or conditional `Match` blocks; it explicitly reports the
 limitation. Package update status depends on local metadata and is not a
 substitute for vendor advisories. Permission restrictions can prevent
 LinuxGuard from establishing a state.
+The network check reports an error when `ss` itself fails, rather than treating
+an empty result as proof that no sockets exist. Bounded world-writable scans
+show at most 100 paths per directory, and an incomplete `find` operation is
+reported as unknown rather than as a clean scan.
 
 LinuxGuard is strictly read-only with respect to the audited host. It does not
 change firewall rules, SSH configuration, users, permissions, packages, service
