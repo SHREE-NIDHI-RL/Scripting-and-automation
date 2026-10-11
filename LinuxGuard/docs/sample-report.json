@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "sample": true,
+  "scan_id": "linuxguard-sample-20260101T000000Z",
+  "audit_start": "2026-01-01T00:00:00Z",
+  "audit_end": "2026-01-01T00:00:04Z",
+  "tool": {
+    "name": "LinuxGuard",
+    "version": "1.0.0"
+  },
+  "system": {
+    "platform": "linux",
+    "distribution": "Ubuntu 24.04 LTS",
+    "kernel": "6.8.0-example",
+    "hostname": "sample-host",
+    "current_user": "analyst",
+    "running_as_root": false
+  },
+  "checks": [
+    {
+      "name": "system",
+      "status": "performed",
+      "description": "System metadata and root-context baseline"
+    },
+    {
+      "name": "ssh",
+      "status": "performed",
+      "description": "Effective SSH daemon configuration"
+    },
+    {
+      "name": "firewall",
+      "status": "skipped",
+      "description": "No supported firewall management tool found"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "INFO",
+      "check": "system",
+      "title": "System baseline collected",
+      "status": "confirmed",
+      "explanation": "System metadata was collected.",
+      "recommendation": "Review metadata against the host baseline."
+    },
+    {
+      "severity": "MEDIUM",
+      "check": "ssh",
+      "title": "SSH password authentication enabled",
+      "status": "confirmed",
+      "explanation": "Effective PasswordAuthentication is yes.",
+      "recommendation": "Consider key-based authentication."
+    },
+    {
+      "severity": "INFO",
+      "check": "firewall",
+      "title": "Firewall status unavailable",
+      "status": "unknown",
+      "explanation": "No supported firewall manager was detected.",
+      "recommendation": "Verify the host firewall manually."
+    },
+    {
+      "severity": "INFO",
+      "check": "permissions",
+      "title": "Sensitive file unavailable",
+      "status": "skipped",
+      "explanation": "An optional file was absent.",
+      "recommendation": "Confirm that its absence is intentional."
+    }
+  ],
+  "summary": {
+    "checks_performed": 2,
+    "skipped_checks": 1,
+    "error_checks": 0,
+    "findings_by_severity": {
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0,
+      "INFO": 3
+    }
+  },
+  "disclaimer": "Automated findings are indicators for investigation, not proof of compromise."
+}
