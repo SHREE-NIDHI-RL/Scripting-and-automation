@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "tool": {
+    "name": "NetScope",
+    "version": "1.0.0"
+  },
+  "timestamp_utc": "2026-01-01T00:00:00Z",
+  "platform": {
+    "system": "Linux",
+    "platform": "Linux-6.8-example",
+    "python_version": "3.12.0"
+  },
+  "operation": "full",
+  "results": {
+    "system": {
+      "status": "available",
+      "value": {
+        "hostname": "example-host",
+        "system": "Linux",
+        "release": "6.8.0-example",
+        "python_version": "3.12.0"
+      }
+    },
+    "network": {
+      "addresses": {
+        "ipv4": {"status": "available", "value": ["192.0.2.10"]},
+        "ipv6": {"status": "unknown", "error": "No IPv6 address returned"}
+      },
+      "interfaces": {"status": "available", "value": ["lo", "eth0"]},
+      "default_gateway": {"status": "available", "value": "192.0.2.1"},
+      "dns_resolvers": {"status": "available", "value": ["192.0.2.53"]}
+    }
+  },
+  "collection_errors": [],
+  "disclaimer": "Illustrative sample data only; network results are not security verdicts."
+}

@@ -1,0 +1,2 @@
+# NetScope uses only the Python standard library at runtime.
+# Python 3.9 or newer is recommended.
